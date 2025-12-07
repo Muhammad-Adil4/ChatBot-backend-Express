@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes";
 import AIRoutes from "./routes/AI-Routes";
+import chatRouter from "./routes/chatRoutes";
 dotenv.config();
 const app = express();
 app.use(cors({origin: "http://localhost:5173", credentials: true,})
@@ -25,7 +26,7 @@ try {
 //Routes data 
 app.use('/api/auth', authRoutes)
 app.use("/api/ai", AIRoutes);
-
+app.use("/api/chats", chatRouter);
 
 
 

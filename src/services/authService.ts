@@ -1,48 +1,75 @@
-// services/authService.ts
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { comparePassword, hashPassword } from "../utils/hash";
 import { prisma } from "../config/database";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
-export interface SignupInput {
+// Return user type without password
+export interface AuthUser {
+  id: string;
   name: string;
   email: string;
-  password: string;
 }
 
-export interface LoginInput {
-  email: string;
-  password: string;
+// Return type for login / signup
+export interface AuthResponse {
+  user: AuthUser;
+  token: string;
 }
 
-export const signup = async ({ name, email, password }: SignupInput) => {
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) throw new Error("User already exists");
+// ----------------------------- SIGNUP -----------------------------
+export const signup = async (name: string,email: string,password: string): Promise<AuthResponse> => {
+  const normalizedEmail = email.trim().toLowerCase();
 
-  const hashed = await hashPassword(password);
+  const existing = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (existing) throw new Error("Email already exists");
+
+  const hashed = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
-    data: { name, email, password: hashed },
+    data: { name, email: normalizedEmail, password: hashed },
   });
 
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  return { user, token };
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    },
+    token,
+  };
 };
 
-export const login = async ({ email, password }: LoginInput) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+// ----------------------------- LOGIN -----------------------------
+export const login = async (email: string,password: string): Promise<AuthResponse> => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
   if (!user) throw new Error("Invalid credentials");
 
-  const isMatch = await comparePassword(password, user.password);
-  if (!isMatch) throw new Error("Invalid credentials");
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) throw new Error("Invalid credentials");
 
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  return { user, token };
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    },
+    token,
+  };
 };

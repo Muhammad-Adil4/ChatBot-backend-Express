@@ -1,29 +1,75 @@
-// controllers/authController.ts
 import { Request, Response } from "express";
-import * as authService from "../services/authService";
+import { signup, login } from "../services/authService";
+import { AuthResponse } from "../services/authService";
 
-export const signup = async (req: Request, res: Response) => {
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data?: T;
+}
+
+// ----------------------------- SIGNUP -----------------------------
+export const signupController = async (
+  req: Request,
+  res: Response<ApiResponse<AuthResponse>>
+): Promise<void> => {
   try {
-    const result = await authService.signup(req.body);
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+      return;
+    }
+
+    const data = await signup(name, email, password);
+
     res.status(201).json({
       success: true,
-      message: "Account created successfully! You can now log in.",
-      data: result,
+      message: "Signup successful",
+      data,
     });
-  } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Something went wrong";
+
+    res.status(400).json({
+      success: false,
+      message,
+    });
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+// ----------------------------- LOGIN -----------------------------
+export const loginController = async (
+  req: Request,
+  res: Response<ApiResponse<AuthResponse>>
+): Promise<void> => {
   try {
-    const result = await authService.login(req.body);
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+      return;
+    }
+
+    const data = await login(email, password);
+
     res.status(200).json({
       success: true,
-      message: "Logged in successfully! Welcome back.",
-      data: result,
+      message: "Login successful",
+      data,
     });
-  } catch (error: any) {
-    res.status(401).json({ success: false, message: error.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Something went wrong";
+
+    res.status(400).json({
+      success: false,
+      message,
+    });
   }
 };
